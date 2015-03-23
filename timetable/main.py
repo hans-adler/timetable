@@ -27,7 +27,8 @@ app.config['SECRET_KEY'] = 'I am not actually secret. Fix me before deployment!'
 # Create in-memory database
 #db_path = 'db.sqlite'
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:cognitivesystems@localhost/pokus'
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:cognitivesystems@localhost/pokus'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:cognitivesystems@localhost/pokus'
 #app.config['SQLALCHEMY_ECHO'] = True
 db = SQLAlchemy(app)
 
@@ -141,6 +142,10 @@ jt_cohort_course = Table('jt_cohort_course', db.Model.metadata,
 jt_component_roomtype = Table('jt_component_roomtype', db.Model.metadata,
     db.Column('component_id', db.Integer, db.ForeignKey('component.id')),
     db.Column('roomtype_id', db.Integer, db.ForeignKey('roomtype.id'))
+)
+jt_component_employee = Table('jt_component_employee', db.Model.metadata,
+    db.Column('component_id', db.Integer, db.ForeignKey('component.id')),
+    db.Column('employee_id', db.Integer, db.ForeignKey('employee.id'))
 )
 
 
@@ -276,11 +281,11 @@ class Employee(db.Model):
         return '{} {}'.format(self.firstname, self.lastname)
 
 class EmployeeAdminView(AdminView):
-    form_columns = ['id', 'salutation', 'degree', 'lastname', 'firstname', 'active', 'chairs', 'courses', 'availability', 'aspcode']
+    form_columns = ['id', 'salutation', 'degree', 'lastname', 'firstname', 'active', 'chairs', 'courses', 'components', 'availability', 'aspcode']
     column_filters = ['active', 'degree']
 
 class EmployeeUserView(UserView):
-    form_columns = ['salutation', 'degree', 'lastname', 'firstname', 'active', 'chairs', 'courses', 'availability', 'aspcode']
+    form_columns = ['salutation', 'degree', 'lastname', 'firstname', 'active', 'chairs', 'courses', 'components', 'availability', 'aspcode']
     column_filters = ['active', 'degree']
 
 
@@ -535,6 +540,7 @@ class Component(db.Model):
     deliverytype = db.relationship('Deliverytype', backref='components')
     capacity = db.Column(db.Integer())
     roomtypes = db.relationship('Roomtype', secondary=jt_component_roomtype, backref='components')
+    employees = db.relationship('Employee', secondary=jt_component_employee, backref='components')
     rhythm_id = db.Column(db.Integer, db.ForeignKey('rhythm.id'))
     rhythm = db.relationship('Rhythm', backref='components')
     internalcomment = db.Column(db.Text)
@@ -562,10 +568,10 @@ class Component(db.Model):
         self.rhythm_id = rhythm_id
 
 class ComponentAdminView(AdminView):
-    form_columns = ['id', 'course', 'deliverytype', 'capacity', 'roomtypes', 'rhythm']
+    form_columns = ['id', 'course', 'deliverytype', 'employees', 'capacity', 'roomtypes', 'rhythm']
 
 class ComponentUserView(UserView):
-    form_columns = ['course', 'deliverytype', 'capacity', 'roomtypes', 'rhythm']
+    form_columns = ['course', 'deliverytype', 'employees', 'capacity', 'roomtypes', 'rhythm']
 
 
 ###
@@ -614,7 +620,7 @@ class OptimizeView(admin.BaseView):
 
         inputArr.append('\n% Course components\n')
         for component in self.session.query(Component):
-            if component.id <= 4429: continue
+            if component.id <= 4429: continue # Quick hack to exclude components from earlier semesters
             #print(dir(component.course.employee))
             print(component)
             inputArr.append('course({0},{1}).\n'.format(component.aspcode, component.aspcapacity))
